@@ -1,0 +1,111 @@
+---
+- name: Common Configuration
+  hosts: all
+  become: yes
+  tasks:
+    #Dezactiveaza firewalld
+    - name: Stop and disable firewalld
+      systemd:
+        name: firewalld
+        state: stopped
+        enabled: no
+
+    # Seteaza fusul orar pe Europe/Bucharest
+    
+    - name: Set timezone to Europe/Bucharest
+      timezone:
+        name: Europe/Bucharest
+
+    # Seteaza PermitRootLogin pe prohibit-password
+    
+    - name: Update sshd_config for PermitRootLogin
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin prohibit-password'
+        state: present
+      notify: restart sshd
+
+    # Seteaza banner SSH
+
+    - name: Set SSH Banner in sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^Banner'
+        line: 'Banner /etc/ssh/sshd_banner'
+        state: present
+
+    - name: Create SSH banner file
+      copy:
+        content: |
+           This server is restricted to authorized users only. All activities on this system are logged.
+            Unauthorized access will be fully investigated and reported to the appropriate law enforcement agencies.
+        dest: /etc/ssh/sshd_banner
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart sshd
+
+
+    # Instaleaza Docker
+    
+    - name: Add Docker repository
+      yum_repository:
+        name: docker-ce-stable
+        description: Docker CE Stable
+        baseurl: https://download.docker.com/linux/centos/$releasever/$basearch/stable
+        gpgcheck: yes
+        gpgkey: https://download.docker.com/linux/centos/gpg
+        enabled: yes
+
+    - name: Install Docker
+      package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+
+    - name: Start and enable Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+
+    # Instaleaza Root CA
+    
+    - name: Install Root CA
+      copy:
+        src: /usr/share/easy-rsa/3/pki/issued/gitlab.crt
+        dest: /etc/pki/ca-trust/source/anchors/root_ca.crt
+      notify: update ca trust
+
+    # Instaleaza gitlab-runner
+    
+    - name: Install gitlab-runner
+      yum:
+        name: gitlab-runner
+        state: present
+
+    # Instaleaza gitlab-ce
+    
+    - name: Install gitlab-ce
+      yum:
+        name: gitlab-ce
+        state: present
+    
+  handlers:
+    # Reporneste serviciul sshd
+    
+    - name: restart sshd
+      systemd:
+        name: sshd
+        state: restarted
+
+    # Actualizeaza trust store
+    
+    - name: update ca trust
+      command: update-ca-trust

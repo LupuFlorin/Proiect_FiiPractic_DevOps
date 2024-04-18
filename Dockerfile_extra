@@ -1,0 +1,11 @@
+# Stage 1: Build with Gradle
+FROM gradle:latest AS build
+COPY . /springboot
+WORKDIR /springboot
+RUN ./gradlew build --no-daemon
+
+# Stage 2: Run with OpenJDK
+FROM openjdk:11
+WORKDIR /springboot
+COPY --from=build /springboot/build/libs/spring-boot-FiiPractic-1.0.jar /springboot
+ENTRYPOINT java -jar build/libs/spring-boot-FiiPractic-1.0.jar

@@ -1,0 +1,71 @@
+---
+name: Common Configuration
+hosts: all
+become: yes
+tasks:# Dezactivează firewalld
+name: Stop and disable firewalld
+  systemd:
+    name: firewalld
+    state: stopped
+    enabled: no
+
+    # Setează fusul orar pe Europe/Bucharest
+    
+name: Set timezone to Europe/Bucharest
+    timezone:
+      name: Europe/Bucharest
+
+    # Setează PermitRootLogin pe prohibit-password
+    
+name: Update sshd_config for PermitRootLogin
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '^PermitRootLogin'
+      line: 'PermitRootLogin prohibit-password'
+      state: present
+    notify: restart sshd
+
+    # Instalează Docker
+    
+name: Install Docker
+    yum:
+      name:
+docker-ce
+docker-ce-cli
+containerd.io
+state: present
+
+    # Instalează Root CA
+    
+name: Install Root CA
+    copy:
+      src: /path/to/root_ca.crt
+      dest: /etc/pki/ca-trust/source/anchors/root_ca.crt
+    notify: update ca trust
+
+    # Instalează gitlab-runner
+    
+name: Install gitlab-runner
+    yum:
+      name: gitlab-runner
+      state: present
+
+    # Instalează gitlab-ce
+    
+name: Install gitlab-ce
+    yum:
+      name: gitlab-ce
+      state: present
+
+  handlers:
+    # Repornește serviciul sshd
+    
+name: restart sshd
+    systemd:
+      name: sshd
+      state: restarted
+
+    # Actualizează trust store
+    
+name: update ca trust
+    command: update-ca-trust
